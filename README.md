@@ -2,5 +2,5 @@
 
 This papaer[arxiv]() is under review, we will promptly release our code once it is accepted.
 
-![](assets/overview.png)
+![](assets/overview.jpg)
 
