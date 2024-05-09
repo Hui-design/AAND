@@ -2,5 +2,5 @@
 
 This papaer [arxiv](https://arxiv.org/abs/2405.02068) is under review, we will promptly release our code once it is accepted.
 
-![overview](assets/overview.jpg)
+![](assets/overview.jpg)
 
