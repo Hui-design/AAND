@@ -2,6 +2,8 @@ import torch
 from torchvision.datasets import ImageFolder
 import numpy as np
 from torch.utils.data import DataLoader
+import os, pdb, sys
+sys.path.append(os.getcwd())
 from models.resnet import resnet18, resnet34, resnet50, wide_resnet50_2
 from models.de_resnet import de_resnet18, de_resnet50, de_wide_resnet50_2
 from models.resnet_rar import resnet18, resnet34, resnet50, wide_resnet50_2_rar
@@ -31,6 +33,14 @@ from models.loss import *
 import time
 from models.recons_net import *
 from tqdm import tqdm
+# import clip
+# from clip_bn import BN_layer, AttnBottleneck
+# from clip_decoder import de_VisionTransformer
+import vit_version.clip as clip
+import vit_version.clip_rar as clip_rar
+from vit_version.clip_bn import BN_layer, AttnBottleneck
+from vit_version.clip_decoder import de_VisionTransformer
+
 
 
 def cal_anomaly_map(fs_list, ft_list, out_size=224, amap_mode='mul', vis=False):
@@ -79,12 +89,12 @@ def evaluation_Stage1(encoder, encoder_AT, dataloader, device, _class_=None):
         for img, gt, label, _ in dataloader:
             img = img.to(device)
             gt = gt.to(device)
-            inputs = encoder(img)
-            # FS
-            _, inputs_AT, delta, atten = encoder_AT(img, flag=True)
+           
+            _, inputs = encoder.encode_image(img, f_list=[4,8,12])
+            _, inputs_AT, atten, delta = encoder_AT.encode_image(img, f_list=[4,8,12])
             # pdb.set_trace()
-            loss_atten, P, R = get_focal_loss(atten, gt)
-            fnorm_loss, afnorm_loss = get_FnormLoss(delta, gt)
+            loss_atten, P, R = get_focal_loss(atten, gt, vit=True)
+            fnorm_loss, afnorm_loss = get_FnormLoss(delta, gt, vit=True)
             fnorm_loss_list.append(fnorm_loss.item())
             if afnorm_loss != 0.0: 
                 afnorm_loss_list.append(afnorm_loss.item())
@@ -135,10 +145,11 @@ def evaluation_Stage2(encoder_AT, bn, decoder_SS, dataloader, device, _class_=No
             tic = time.time()
             torch.cuda.synchronize()
             # FS
-            _, inputs, _, _ = encoder_AT(img, flag=True)
+            _, inputs, atten, delta = encoder_AT.encode_image(img, f_list=[4,8,12])
             # inputs = encoder_AT(img)
             # SS
-            outputs = decoder_SS(bn(inputs))
+            # outputs = decoder_SS(bn(inputs))
+            _, outputs = decoder_SS(bn(inputs), f_list=[2,4,6])
             torch.cuda.synchronize()
             time_list.append(time.time() - tic)
 
@@ -167,6 +178,8 @@ def evaluation_Stage2(encoder_AT, bn, decoder_SS, dataloader, device, _class_=No
         gt_list_px = np.array(gt_list_px)
         pr_list_sp = np.array(pr_list_sp)
         gt_list_sp = np.array(gt_list_sp)
+        # np.save('results/saved_data/zipper/pr_list_sp_zipper', pr_list_sp)
+        # np.save('results/saved_data/zipper/gt_list_sp_zipper', gt_list_sp)
 
         normal_sp = pr_list_sp[gt_list_sp==0]
         anomaly_sp = pr_list_sp[gt_list_sp==1]
@@ -196,25 +209,26 @@ def test(_class_, args):
     print(device)
     print(_class_)
     
-    Stage1_ckp_path = './checkpoints_Stage1/' + 'wres50_'+_class_+'.pth'
-    Stage2_ckp_path = './checkpoints_Stage2/' + 'wres50_'+ _class_+'.pth'
+    Stage1_ckp_path = 'vit_version/checkpoints_Stage1/' + 'wres50_'+_class_+'.pth'
+    Stage2_ckp_path = 'vit_version/checkpoints_Stage2/' + 'wres50_'+ _class_+'.pth'
     image_size = 256
     test_data = TestDataset(class_name=_class_, img_size=args.image_size, dataset_path=args.data_root)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=False)
     
-    # Advanced Teacher
-    encoder_AT, bn = wide_resnet50_2_rar(pretrained=False)
+    encoder_AT, _ = clip_rar.load("ViT-B/16", download_root='vit_version/clip', device=torch.device("cpu"), image_size=args.image_size)
     encoder_AT = encoder_AT.to(device)
-    encoder_AT.load_state_dict(torch.load(Stage1_ckp_path)['encoder_AT'])  
+    encoder_AT.load_state_dict(torch.load(Stage1_ckp_path)['encoder_AT'])  # 加载Stage1
     encoder_AT.eval()
 
-    # Vanilla Teacher
-    encoder_pre, _ = wide_resnet50_2(pretrained=True)
+    # encoder_pre, _ = clip.load("ViT-L/14@336px", download_root='./clip', device=torch.device("cpu"), image_size=336)
+    encoder_pre, _ = clip.load("ViT-B/16", download_root='vit_version/clip', device=torch.device("cpu"), image_size=args.image_size)
     encoder_pre = encoder_pre.to(device)
     encoder_pre.eval()
+    # pdb.set_trace()
 
+    bn = BN_layer(AttnBottleneck, 3)
     bn = bn.to(device)
-    decoder_SS = de_wide_resnet50_2(pretrained=False)
+    decoder_SS = de_VisionTransformer(input_resolution=256, patch_size=16, width=768, layers=6, heads=12, output_dim=512)
     decoder_SS = decoder_SS.to(device)
 
     SS_ckp = torch.load(Stage2_ckp_path)
@@ -227,11 +241,7 @@ def test(_class_, args):
     # total_params = compute_params([encoder_AT, bn, decoder_SS])
     # print(f'total params: {total_params/1e6} M') #{sum([x.nelement() for x in self.model.parameters()])/1000000.} M
 
-    # baseline, RD
-    # auroc_px, auroc_sp, aupro_px, time_list, preds, labels = evaluation_Stage2(encoder_pre, bn, decoder_SS, test_dataloader, device, _class_)
-    # Ours
     auroc_px, auroc_sp, aupro_px, time_list, preds, labels = evaluation_Stage2(encoder_AT, bn, decoder_SS, test_dataloader, device, _class_)
-    # pdb.set_trace()
     print(_class_,':',auroc_px,',',auroc_sp,',',aupro_px)
     return auroc_px, auroc_sp, aupro_px, time_list, preds, labels
 
@@ -284,9 +294,8 @@ def compute_pro(masks: ndarray, amaps: ndarray, num_th: int = 200) -> None:
         fp_pixels = np.logical_and(inverse_masks, binary_amaps).sum()
         fpr = fp_pixels / inverse_masks.sum()
 
-        # df = df.append({"pro": mean(pros), "fpr": fpr, "threshold": th}, ignore_index=True)
+        # df = df.append({"pro": mean(pros), "fpr": fpr, "threshold": th}, ignore_index=True)   # old pandas version
         df = pd.concat([df, pd.DataFrame([{"pro": mean(pros), "fpr": fpr, "threshold": th}])], ignore_index=True)
-
 
     # Normalize FPR from 0 ~ 1 to 0 ~ 0.3
     df = df[df["fpr"] < 0.3]
@@ -295,6 +304,17 @@ def compute_pro(masks: ndarray, amaps: ndarray, num_th: int = 200) -> None:
     pro_auc = auc(df["fpr"], df["pro"])
     return pro_auc
 
+
+# if __name__ == '__main__':
+#     from utils.utils import setup_seed
+#     setup_seed(111)
+#     item_list = ['carpet', 'bottle', 'hazelnut', 'leather', 'cable', 'capsule', 'grid', 'pill',
+#                  'transistor', 'metal_nut', 'screw','toothbrush', 'zipper', 'tile', 'wood']
+#     # from MvTec3D import mvtec3d_classes
+#     # item_list = mvtec3d_classes()
+   
+#     for i in item_list:
+#         test(i)
 
 if __name__ == '__main__':
     # from main import setup_seed
@@ -344,8 +364,10 @@ if __name__ == '__main__':
     normal = np.array(pred_list)[np.array(label_list)==0]
     anomaly = np.array(pred_list)[np.array(label_list)==1] 
     os.makedirs(f'results/{dataset_name}',exist_ok=True)
-    np.save(f'results/{dataset_name}/normal_scores', normal)
-    np.save(f'results/{dataset_name}/anomaly_scores', anomaly)
+    np.save(f'results/{dataset_name}/normal_scores_vit', normal)
+    np.save(f'results/{dataset_name}/anomaly_scores_vit', anomaly)
+    # np.save('normal_scores', normal)
+    # np.save('anomaly_scores', anomaly)
     # normal = np.load('normal_scores.npy')
     # anomaly = np.load('anomaly_scores.npy')
     # pdb.set_trace()

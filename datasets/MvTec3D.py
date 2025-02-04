@@ -13,7 +13,7 @@ import imgaug.augmenters as iaa
 from utils.perlin import rand_perlin_2d_np
 import random
 import cv2
-from datasets.database import BaseAnomalyDetectionDataset, SynthesisDataset
+from datasets.database import BaseAnomalyDetectionDataset, SynthesisDataset, resize_organized_pc
 
 
 def mvtec3d_classes():

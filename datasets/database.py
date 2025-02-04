@@ -16,6 +16,14 @@ import random
 from utils.vis import vis_anomaly_images
 import cv2
 
+def resize_organized_pc(organized_pc, img_size=256, tensor_out=True):
+    torch_organized_pc = torch.tensor(organized_pc).permute(2, 0, 1).unsqueeze(dim=0).contiguous()
+    torch_resized_organized_pc = torch.nn.functional.interpolate(torch_organized_pc, size=img_size,
+                                                                 mode='nearest')
+    if tensor_out:
+        return torch_resized_organized_pc.squeeze(dim=0).contiguous()
+    else:
+        return torch_resized_organized_pc.squeeze().permute(1, 2, 0).contiguous().numpy()
 
 class BaseAnomalyDetectionDataset(Dataset):
     def __init__(self, split, class_name, img_size, dataset_path='datasets/eyecandies_preprocessed'):

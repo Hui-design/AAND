@@ -14,7 +14,7 @@
 <div align="center">
     <img src="assets/image.png" alt="framework" width="800" >
 </div> -->
-
+There are two underlying assumptions in KD-based anomaly detection framework: **Assumption I**: The teacher model can represent two separable distributions for the normal and abnormal patterns; **Assumption II**: the student model can only reconstruct the normal distribution. In this paper, we propose a simple yet effective two-stage anomaly detection framework, which comprises an Anomaly Amplification Stage **Stage I** to address Assumption I and a Normality Distillation Stage **Stage II** to address Assumption II. 
 
 
 
@@ -42,7 +42,7 @@ pip install -r requirements.txt
 ```
 
 
-## 💾 Dataset and Preprocessing
+## 💾 Dataset
 
 - [MVTec AD](https://www.mvtec.com/company/research/datasets/mvtec-ad)
 - [VisA](https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar), use [visa.py](https://github.com/ByChelsea/VAND-APRIL-GAN/blob/master/data/visa.py) to generate meta.json
@@ -79,6 +79,7 @@ pip install -r requirements.txt
             ├── ...
 ```
 
+## Preprocessing
 - Extract foreground mask for **training** images.
 
 ```bash
@@ -98,53 +99,33 @@ python demo.py --src_file=your_data_path/src.npy --ref_file=your_data_path/ref.n
 ``` -->
 
 ## 🚅 Training
-<!-- You can train models on mvtec, VisA, or mvtec3d by the following commands:
+You can train models on mvtec, VisA, or mvtec3d by the following commands:
+```bash
+python train.py --data_root <your_path>/<dataset_name>/  # the <dataset_name> is mvtec, VisA, or mvtec3d
+```
 
-```bash
-cd experiments/3DMatch (or KITTI)
-CUDA_VISIBLE_DEVICES=0 python trainval.py
-```
-You can also use multiple GPUs by:
-```bash
-CUDA_VISIBLE_DEVICES=GPUS python -m torch.distributed.launch --nproc_per_node=NGPUS trainval.py
-```
-For example,
-```bash
-CUDA_VISIBLE_DEVICES=0,1 python -m torch.distributed.launch --nproc_per_node=2 trainval.py
-``` -->
 
 ## ⛳ Testing
-<!-- To test a pre-trained models on 3DMatch, use the following commands:
+You can test the trained models on mvtec, VisA, or mvtec3d by the following commands:
 ```bash
-# 3DMatch
-python test.py --benchmark 3DMatch --snapshot ../../pretrain/3dmatch.pth.tar
-python eval.py --benchmark 3DMatch
+python test.py --data_root <your_path>/<dataset_name>/  # the <dataset_name> is mvtec, VisA, or mvtec3d
 ```
-To test the model on 3DLoMatch, just change the argument `--benchmark 3DLoMatch`.
-
-To test a pre-trained models on KITTI, use the similar commands:
-```bash
-# KITTI
-python test.py --snapshot ../../pretrain/kitti.pth.tar
-python eval.py
-``` -->
 
 ## Citation
 
-<!-- ```bibtex
-@inproceedings{yao2024parenet,
-    title={PARE-Net: Position-Aware Rotation-Equivariant Networks for Robust Point Cloud Registration},
-    author={Runzhao Yao and Shaoyi Du and Wenting Cui and Canhui Tang and Chengwu Yang},
-    journal={arXiv preprint arXiv:2407.10142},
-    year={2024}
+```bibtex
+@article{tang2024advancing,
+  title={Advancing Pre-trained Teacher: Towards Robust Feature Discrepancy for Anomaly Detection},
+  author={Tang, Canhui and Zhou, Sanping and Li, Yizhe and Dong, Yonghao and Wang, Le},
+  journal={arXiv preprint arXiv:2405.02068},
+  year={2024}
 }
-``` -->
+```
+
 
 ## Acknowledgements
-<!-- Our code is heavily brought from
-- [GeoTransformer](https://github.com/qinzheng93/GeoTransformer)
-- [VectorNeurons](https://github.com/FlyingGiraffe/vnn)
-- [PAConv](https://github.com/CVMI-Lab/PAConv) -->
+- [RD4AD](https://github.com/hq-deng/RD4AD)
+- [DRAEM](https://github.com/VitjanZ/DRAEM)
 
 
 

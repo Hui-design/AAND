@@ -6,13 +6,15 @@ import time
 import os
 import torch.nn as nn
 from torch.utils.data import DataLoader
+import os, pdb, sys
+sys.path.append(os.getcwd())
 from models.resnet import resnet18, resnet34, resnet50, wide_resnet50_2
 from models.resnet_rar import resnet18, resnet34, resnet50, wide_resnet50_2_rar
 from models.de_resnet import de_resnet18, de_resnet34, de_wide_resnet50_2, de_resnet50
 # from models.de_resnet_mem import de_wide_resnet50_2_mem
 import torch.backends.cudnn as cudnn
 import argparse
-from test import evaluation_Stage1, evaluation_Stage2
+from vit_version.test_vit import evaluation_Stage1, evaluation_Stage2
 from torch.nn import functional as F
 from models.loss import *
 from utils.vis import vis_anomaly_images
@@ -22,6 +24,14 @@ import pdb
 from utils.vis import *
 from tqdm import tqdm
 from utils.utils import PatchMaker
+# import clip, clip_rar
+# from clip_bn import BN_layer, AttnBottleneck
+# from clip_decoder import de_VisionTransformer
+import vit_version.clip as clip
+import vit_version.clip_rar as clip_rar
+from vit_version.clip_bn import BN_layer, AttnBottleneck
+from vit_version.clip_decoder import de_VisionTransformer
+
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -34,18 +44,19 @@ def train_Stage1(args, _class_, epochs=100, eval_interval=10, lr=0.0002):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(device)
 
-    Stage1_ckp_path = './checkpoints_Stage1/' + 'wres50_'+_class_+'.pth'
-    os.makedirs('checkpoints_Stage1', exist_ok=True)
+    Stage1_ckp_path = 'vit_version/checkpoints_Stage1/' + 'wres50_'+_class_+'.pth'
+    os.makedirs('vit_version/checkpoints_Stage1', exist_ok=True)
     train_data = AnomalyDataset(class_name=_class_, img_size=args.image_size, dataset_path=args.data_root, aux_path=args.aux_path)  # 注意：既有正常又有合成的异常
     test_data = TestDataset(class_name=_class_, img_size=args.image_size, dataset_path=args.data_root)
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=4)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=False)
 
-    encoder, _ = wide_resnet50_2(pretrained=True)
+    # encoder, _ = clip.load("ViT-L/14@336px", download_root='./clip', device=torch.device("cpu"), image_size=336)  # Modify1
+    encoder, _ = clip.load("ViT-B/16", download_root='vit_version/clip', device=torch.device("cpu"), image_size=args.image_size)
     encoder = encoder.to(device)
     encoder.eval()
-    # load INet-pretrain,
-    encoder_AT, _ = wide_resnet50_2_rar(pretrained=True)  
+    
+    encoder_AT, _ = clip_rar.load("ViT-B/16", download_root='vit_version/clip', device=torch.device("cpu"), image_size=args.image_size)
     encoder_AT = encoder_AT.to(device)
 
     for name, para in encoder_AT.named_parameters():
@@ -68,8 +79,7 @@ def train_Stage1(args, _class_, epochs=100, eval_interval=10, lr=0.0002):
     # print(f'test_fnorm_loss: {np.mean(test_fnorm_loss):.4f} test_afnorm_loss: {np.mean(test_afnorm_loss):.4f}')
     # pdb.set_trace()
     for epoch in tqdm(range(epochs)):
-        encoder_AT.train() # for every epoch, set train mode, while the evaluation phase eval mode
-        # set BN false
+        encoder_AT.train() 
         for name, module in encoder_AT.named_modules():
             if isinstance(module, nn.BatchNorm2d):
                 module.eval()
@@ -84,15 +94,17 @@ def train_Stage1(args, _class_, epochs=100, eval_interval=10, lr=0.0002):
             anomaly_mask = batch_data["anomaly_mask"].to(device)  # 注意：是否要求有一半是正常图像？
             fore_mask = batch_data["fore_mask"].to(device)
             # vis_anomaly_images(img, anomaly_mask, _class_)
+  
             with torch.no_grad():
-                inputs = encoder(img)
-            _, inputs_AT, delta, atten = encoder_AT(img, flag=False, atten_mask=anomaly_mask)
+                _, inputs = encoder.encode_image(img, f_list=[4,8,12])
+           
+            _, inputs_AT, atten, delta = encoder_AT.encode_image(img, f_list=[4,8,12])
             # pdb.set_trace()
-            loss_focal, P, R = get_focal_loss(atten, anomaly_mask)
-            loss_normal, loss_anomaly = get_amplify_loss(inputs, inputs_AT, anomaly_mask, fore_mask)
-            loss = loss_focal*1.0 + loss_anomaly * 0.1
-            # Res Loss: the residual of anomalies (afnorm) should increase
-            fnorm_loss, afnorm_loss = get_FnormLoss(delta, anomaly_mask)
+            loss_focal, P, R = get_focal_loss(atten, anomaly_mask, vit=True)
+            loss_normal, loss_anomaly = get_amplify_loss(inputs, inputs_AT, anomaly_mask, fore_mask, vit=True)
+            loss = loss_focal*1.0 + loss_anomaly *0.1 + loss_normal*0 
+            # Res Loss: 
+            fnorm_loss, afnorm_loss = get_FnormLoss(delta, anomaly_mask, vit=True)
             fnorm_loss_list.append(fnorm_loss.item())
             if afnorm_loss != 0.0: 
                 afnorm_loss_list.append(afnorm_loss.item())
@@ -132,7 +144,7 @@ def train_Stage1(args, _class_, epochs=100, eval_interval=10, lr=0.0002):
                 best_auroc_px = auroc_px
                 torch.save({'encoder_AT': encoder_AT.state_dict()}, Stage1_ckp_path)
                             # 'reconsKV_fs': recons_rar.state_dict()}, Stage1_ckp_path)
-            if auroc_sp > 0.999 and epoch > 30:
+            if auroc_sp > 0.999 and epoch > 5:
                 break 
     return best_auroc_px, best_auroc_sp, aupro_px
 
@@ -144,27 +156,30 @@ def train_Stage2(args, _class_, epochs=100, eval_interval=10, lr=0.005):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(device)
     
-    Stage1_ckp_path = './checkpoints_Stage1/' + 'wres50_'+_class_+'.pth'
-    Stage2_ckp_path = './checkpoints_Stage2/' + 'wres50_'+ _class_+'.pth'
-    os.makedirs('checkpoints_Stage2', exist_ok=True)
-    # only normal data
+    Stage1_ckp_path = 'vit_version/checkpoints_Stage1/' + 'wres50_'+_class_+'.pth'
+    Stage2_ckp_path = 'vit_version/checkpoints_Stage2/' + 'wres50_'+ _class_+'.pth'
+    os.makedirs('vit_version/checkpoints_Stage2', exist_ok=True)
+    # 
     train_data = TrainDataset(class_name=_class_, img_size=args.image_size, dataset_path=args.data_root)
     test_data = TestDataset(class_name=_class_, img_size=args.image_size, dataset_path=args.data_root)
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=4)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=False)
 
-    encoder_AT, bn = wide_resnet50_2_rar(pretrained=True)  
+    # 
+    # encoder, _ = clip.load("ViT-L/14@336px", download_root='./clip', device=torch.device("cpu"), image_size=336)  # Modify1
+    encoder_pre, _ = clip.load("ViT-B/16", download_root='vit_version/clip', device=torch.device("cpu"), image_size=args.image_size)
+    encoder_pre = encoder_pre.to(device)
+    encoder_pre.eval()
+    # 
+    encoder_AT, _ = clip_rar.load("ViT-B/16", download_root='vit_version/clip', device=torch.device("cpu"), image_size=args.image_size)
     encoder_AT = encoder_AT.to(device)
     encoder_AT.load_state_dict(torch.load(Stage1_ckp_path)['encoder_AT'])  # 加载Stage1
     encoder_AT.eval()
 
-    encoder_pre, _ = wide_resnet50_2(pretrained=True)
-    encoder_pre = encoder_pre.to(device)
-    encoder_pre.eval()
-
+    # 
+    bn = BN_layer(AttnBottleneck, 3)
     bn = bn.to(device)
-    # decoder_SS = de_wide_resnet50_2_mem(pretrained=False)
-    decoder_SS = de_wide_resnet50_2(pretrained=False)
+    decoder_SS = de_VisionTransformer(input_resolution=256, patch_size=16, width=768, layers=6, heads=12, output_dim=512)
     decoder_SS = decoder_SS.to(device)
    
     optimizer_Stage2 = torch.optim.Adam(list(decoder_SS.parameters())+list(bn.parameters()), lr=lr, betas=(0.5,0.999))
@@ -182,11 +197,13 @@ def train_Stage2(args, _class_, epochs=100, eval_interval=10, lr=0.005):
         for batch_data in train_dataloader:
             # load data
             img = batch_data[0].to(device)
+            # 
             with torch.no_grad():
-                _, inputs, _, _ = encoder_AT(img, flag=True)
+                _, inputs, atten, delta = encoder_AT.encode_image(img, f_list=[4,8,12])
                 # inputs = encoder_pre(img)
 
-            outputs = decoder_SS(bn(inputs))
+            # outputs = decoder_SS(bn(inputs))
+            _, outputs = decoder_SS(bn(inputs), f_list=[2,4,6])
 
             kd_loss = loss_fucntion(inputs, outputs)  # 这句话是不变的
             loss = kd_loss
@@ -204,7 +221,7 @@ def train_Stage2(args, _class_, epochs=100, eval_interval=10, lr=0.005):
             auroc_px, auroc_sp, aupro_px, _, _, _ = evaluation_Stage2(encoder_AT, bn, decoder_SS, test_dataloader, device)  
             print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Pixel Aupro{:.3}'.format(auroc_px, auroc_sp, aupro_px))
             
-            if (auroc_sp+auroc_px) > (best_auroc_sp+best_auroc_px) and epoch > 5:
+            if auroc_sp > best_auroc_sp and epoch > 5:
                 best_auroc_sp = auroc_sp
                 best_auroc_px = auroc_px
                 torch.save({'bn': bn.state_dict(),
@@ -218,6 +235,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_root', type=str, default='/data4/tch/AD_data/mvtec')
     parser.add_argument('--aux_path', type=str, default='/data4/tch/AD_data/DRAEM_dtd/dtd/images')
+    parser.add_argument('--L_rar', type=int, default=50)
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--image_size', type=int, default=256)
     args = parser.parse_args()
@@ -236,7 +254,7 @@ if __name__ == '__main__':
         from datasets.MvTec3D import mvtec3d_classes
         item_list = mvtec3d_classes()
 
-    setup_seed(0)
+    setup_seed(111)
 
     auroc_Stage1_list = []
     auroc_Stage2_list = []
@@ -244,7 +262,7 @@ if __name__ == '__main__':
     for i in item_list:
         _, auroc_sp, _ = train_Stage1(args, i, epochs=100, eval_interval=5, lr=0.005)
         auroc_Stage1_list.append(auroc_sp)
-        _, auroc_sp, _ = train_Stage2(args, i, epochs=120, eval_interval=5, lr=0.005)
+        _, auroc_sp, _ = train_Stage2(args, i, epochs=120, eval_interval=10, lr=0.005)
         auroc_Stage2_list.append(auroc_sp)
     auroc_Stage1_mean = np.mean(auroc_Stage1_list)
     auroc_Stage2_mean = np.mean(auroc_Stage2_list)

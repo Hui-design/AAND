@@ -15,7 +15,7 @@ import random
 from utils.vis import vis_anomaly_images
 import cv2
 import json
-from datasets.database import BaseAnomalyDetectionDataset, SynthesisDataset
+from datasets.database import BaseAnomalyDetectionDataset, SynthesisDataset, resize_organized_pc
 
 
 def visa_classes():
