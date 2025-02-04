@@ -83,7 +83,7 @@ pip install -r requirements.txt
 - Extract foreground mask for **training** images.
 
 ```bash
-python scripts/fore_extractor.py --data_path <your_path>/<dataset_name>/  # the <dataset_name> is mvtec, VisA, or mvtec3d
+python scripts/fore_extractor.py --data_path <your_path>/<dataset_name>/ --aux_path <your_path>/dtd/images/  # the <dataset_name> is mvtec, VisA, or mvtec3d
 ```
 
 <!-- ## ⚽ Demo
