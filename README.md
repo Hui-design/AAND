@@ -14,7 +14,7 @@
 <div align="center">
     <img src="assets/image.png" alt="framework" width="800" >
 </div> -->
-There are two underlying assumptions in KD-based anomaly detection framework: **Assumption I**: The teacher model can represent two separable distributions for the normal and abnormal patterns; **Assumption II**: the student model can only reconstruct the normal distribution. In this paper, we propose a simple yet effective two-stage anomaly detection framework, which comprises an Anomaly Amplification Stage **Stage I** to address Assumption I and a Normality Distillation Stage **Stage II** to address Assumption II. 
+There are two underlying assumptions in KD-based anomaly detection framework. **Assumption I**: The teacher model can represent two separable distributions for the normal and abnormal patterns; **Assumption II**: the student model can only reconstruct the normal distribution. In this paper, we propose a simple yet effective two-stage anomaly detection framework, termed AAND, which comprises an Anomaly Amplification Stage **Stage I** to address Assumption I and a Normality Distillation Stage **Stage II** to address Assumption II. 
 
 
 
