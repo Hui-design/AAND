@@ -19,12 +19,8 @@ There are two underlying assumptions in KD-based anomaly detection framework. **
 
 
 ## News
-<!-- 
-2024.07.20: Code and pretrained models on 3DMatch and KITTI are released.
 
-2024.07.14: Paper is available at [arXiv](https://arxiv.org/abs/2407.10142).
-
-2024.07.04: Our paper is accepted by ECCV 2024!. -->
+🔥 2024.06: Our another KD-based Project [VAND-GNL](https://github.com/Hui-design/VAND-GNL) won the 2nd Place of CVPR 2024 [VAND2.0 Challenge](https://www.hackster.io/contests/openvino2024#challengeNav)
 
 ## 🔧  Installation
 
