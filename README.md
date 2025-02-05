@@ -3,10 +3,6 @@
 <a href="https://arxiv.org/abs/2405.02068" target="_blank">Advancing Pre-trained Teacher: Towards Robust Feature Discrepancy for Anomaly Detection</a>
 </h2>
 
-<div style="text-align: center;">
- Canhui Tang, Sanping Zhou, Yizhe Li, Yonghao Dong, Le Wang
-</div>
-
 ## Overview
 
 
@@ -20,7 +16,8 @@
 </div> -->
 There are two underlying assumptions in KD-based anomaly detection framework. **Assumption I**: The teacher model can represent two separable distributions for the normal and abnormal patterns; **Assumption II**: the student model can only reconstruct the normal distribution. In this paper, we propose a simple yet effective two-stage anomaly detection framework, termed AAND, which comprises an Anomaly Amplification Stage **Stage I** to address Assumption I and a Normality Distillation Stage **Stage II** to address Assumption II. 
 
-
+## Author
+Canhui Tang, Sanping Zhou, Yizhe Li, Yonghao Dong, Le Wang
 
 ## News
 
