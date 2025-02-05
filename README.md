@@ -17,7 +17,9 @@
 There are two underlying assumptions in KD-based anomaly detection framework. **Assumption I**: The teacher model can represent two separable distributions for the normal and abnormal patterns; **Assumption II**: the student model can only reconstruct the normal distribution. In this paper, we propose a simple yet effective two-stage anomaly detection framework, termed AAND, which comprises an Anomaly Amplification Stage **Stage I** to address Assumption I and a Normality Distillation Stage **Stage II** to address Assumption II. 
 
 ## Author
-Canhui Tang, Sanping Zhou, Yizhe Li, Yonghao Dong, Le Wang
+[Canhui Tang](https://scholar.google.com/citations?hl=zh-CN&user=TKqkrnUAAAAJ), [Sanping Zhou](https://scholar.google.cz/citations?hl=zh-CN&user=2Drvv44AAAAJ), Yizhe Li, Yonghao Dong, [Le Wang](https://scholar.google.cz/citations?hl=zh-CN&user=RypRCUQAAAAJ)
+
+Xi'an Jiaotong University
 
 ## News
 
