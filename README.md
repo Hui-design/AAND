@@ -1,9 +1,11 @@
 
 <h2 align="center">
 <a href="https://arxiv.org/abs/2405.02068" target="_blank">Advancing Pre-trained Teacher: Towards Robust Feature Discrepancy for Anomaly Detection</a>
-    Canhui Tang, Sanping Zhou, Yizhe Li, Yonghao Dong, Le Wang
+   
 </h2>
-
+<div style="text-align: center;">
+ Canhui Tang, Sanping Zhou, Yizhe Li, Yonghao Dong, Le Wang
+</div>
 ## Overview
 
 
