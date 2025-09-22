@@ -23,7 +23,9 @@ Xi'an Jiaotong University
 
 ## News
 🔥 2025.09: Awaiting SAE Decision approval
+
 🔥 2025.05: Accept with Mandatory Minor Revisions 
+
 🔥 2024.06: Our another KD-based Project [VAND-GNL](https://github.com/Hui-design/VAND-GNL) won the 2nd Place of CVPR 2024 [VAND2.0 Challenge](https://www.hackster.io/contests/openvino2024#challengeNav)
 
 ## 🔧  Installation
