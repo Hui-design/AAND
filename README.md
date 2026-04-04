@@ -23,6 +23,7 @@ Xi'an Jiaotong University
 
 ## News
 🔥 2026.04: This paper Accepted by IEEE Transactions on Image Processing ! 
+
 🔥 2024.06: Our another KD-based Project [VAND-GNL](https://github.com/Hui-design/VAND-GNL) won the 2nd Place of CVPR 2024 [VAND2.0 Challenge](https://www.hackster.io/contests/openvino2024#challengeNav)
 
 ## 🔧  Installation
